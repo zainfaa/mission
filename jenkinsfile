@@ -1,0 +1,60 @@
+pipeline {
+    agent any
+    
+    environment {
+        SCANNER_HOME= TOOL 'sonar-scanner'
+    }
+        tools {
+        jdk 'jdk17'
+        maven 'maven3'
+    }
+    
+    stages {
+        
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', changelog: false, credentialsId: 'git-cred', poll: false, url: 'https://github.com/zainfaa/mission.git'
+                }
+        }
+
+         stage('compile') {
+            steps {
+                sh "mvn compile"
+                
+            }
+        }
+        
+        stage('test') {
+            steps {
+                sh "mvn test -DskipTests=true"
+         }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                sh "trivy fs -format table -o trivy-fs-report.html . "           
+        }
+        }    
+        
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar'){
+		        	sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectKey=Mission -Dsonar.projectName=Mission \
+			        	-Dsonar.java.binaries=. '''
+                }
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh "mvn package -DskipTests=true"
+            }
+        }
+         
+        stage('Hello') {
+            steps {
+                echo 'Hello World'
+            }
+        }
+    }
+}
